@@ -1,0 +1,12 @@
+Tests for runtime-arbitrary
+---------------------------
+
+This is necessarily a separate module to `runtime-arbitrary` as that package must be available to `nix-eval` for these tests to work. To run the tests, use `cabal run`.
+
+These tests are necessary as `runtime-arbitrary` does not provide any static guarantees that `getArbGen` will provide any Arbitrary instances. In fact, by default it will return an empty list!
+
+To make it produce anything at all, we must insert the following line into our program (or into the preamble of a `nix-eval` expression):
+
+    mkIfCxtInstances ''Arbitrary
+
+This uses template haskell to look up all instances of the `Arbitrary` typeclass available at that point, and make them available to `getArbGen`. The placement of this line is important: it will only find instances from those modules which have been imported at that point. This is why we don't perform this step automatically in `runtime-arbitrary`: the available instances would be limited to what `runtime-arbitrary` has imported; by requiring users to insert this themselves, all of their imports will be available too.

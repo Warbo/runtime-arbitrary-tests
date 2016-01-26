@@ -5,14 +5,19 @@ import           Data.List
 import           Language.Eval
 import           RuntimeArbitrary
 import           Test.QuickCheck
+import           Test.QuickCheck.Monadic
 import           Test.Tasty (defaultMain, testGroup)
 import           Test.Tasty.QuickCheck (testProperty)
 
 main = defaultMain $ testGroup "All tests" [
-    testProperty "Have an Int generator" haveIntGen
-  , testProperty "Int generator works"   intGenWorks
-  , testProperty "Have a Foo generator"  haveFooGen
-  , testProperty "Foo generator works"   fooGenWorks
+    testProperty "Found Int's Ord instance"       haveIntOrd
+  , testProperty "Found Int's Arbitrary instance" haveIntArbitrary
+  , testProperty "Found Foo's Ord instance"       haveFooOrd
+  , testProperty "Found Foo's Arbitrary instance" haveFooArbitrary
+  , testProperty "Have an Int generator"          haveIntGen
+  , testProperty "Int generator works"            intGenWorks
+  , testProperty "Have a Foo generator"           haveFooGen
+  , testProperty "Foo generator works"            fooGenWorks
   ]
 
 intGens = arbGen "Int"
@@ -20,24 +25,34 @@ intGens = arbGen "Int"
 fooGens = withMods ["TestInstances"] . withPkgs ["runtime-arbitrary"] $
           arbGen "Foo"
 
-haveIntGen = run ("show" $$ notNull' intGens) givesTrue
+haveIntOrd       = givesTrue (isInstance' "Ord"       "Int")
+haveIntArbitrary = givesTrue (isInstance' "Arbitrary" "Int")
 
-haveFooGen = run ("show" $$ notNull' fooGens) givesTrue
+haveFooOrd       = givesTrue (isInstance' "Ord"       "Foo")
+haveFooArbitrary = givesTrue (isInstance' "Arbitrary" "Foo")
 
-intGenWorks = run (test' intGens) givesTrue
+haveIntGen = givesTrue ("show" $$ notNull' intGens)
 
-fooGenWorks = run (test' fooGens) givesTrue
+haveFooGen = givesTrue ("show" $$ notNull' fooGens)
+
+intGenWorks = givesTrue (test' intGens)
+
+fooGenWorks = givesTrue (test' fooGens)
 
 -- Run nix-eval and check the result (Nothing for expected failure)
 
-run :: Expr -> (Maybe String -> Property) -> Property
-run i p = once $ ioProperty $ do
+givesTrue :: Expr -> Property
+givesTrue i = once $ counterexample (show i) $ ioProperty $ do
   result <- eval i
-  return (p result)
-
-givesTrue = (Just "True" ===)
+  return (Just "True" === result)
 
 -- Quoted functions
+
+isInstance' c t =
+  withInstances                                                           .
+  withPkgs ["ifcxt", "QuickCheck", "runtime-arbitrary"]                   .
+  withMods ["IfCxt", "Data.Typeable", "Test.QuickCheck", "TestInstances"] $
+  raw ("(ifCxt (Proxy :: Proxy (" ++ c ++ " " ++ t ++ ")) \"True\" \"False\")")
 
 forAll' = withPkgs ["QuickCheck"] $ qualified "Test.QuickCheck" "forAll"
 
@@ -70,23 +85,16 @@ notNull' x = "not" $$ "null" $$ x
 
 withTH = withFlags ["-XTemplateHaskell"] . withPkgs ["template-haskell"]
 
-withIfCxt = withFlags ["-XFlexibleInstances"] .
+withIfCxt = withFlags ["-XFlexibleInstances",
+                       "-XKindSignatures",
+                       "-XScopedTypeVariables",
+                       "-XMultiParamTypeClasses"] .
             withPkgs  ["ifcxt"] .
             withMods  ["IfCxt"]
 
-withInstances = withIfCxt .
-                withMods ["Test.QuickCheck"] .
+withInstances = withIfCxt                                   .
+                withMods ["Test.QuickCheck"]                .
+                withMods ["Data.Typeable"]                  .
                 withPreamble "mkIfCxtInstances ''Arbitrary" .
+                withPreamble "mkIfCxtInstances ''Ord"       .
                 withTH
-
-{-
-RankNTypes, FlexibleInstances, FlexibleContexts, KindSignatures, ScopedTypeVariables, TemplateHaskell, ConstraintKinds, TemplateHaskell
-
-module ArbInstances where
-
-import IfCxt
-import Test.QuickCheck
-
-mkIfCxtInstances ''Arbitrary
-
--}

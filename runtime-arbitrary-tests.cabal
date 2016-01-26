@@ -2,7 +2,7 @@
 -- further documentation, see http://haskell.org/cabal/users-guide/
 
 name:                runtime-arbitrary-tests
-version:             0.1.0.0
+version:             0.1.0.1
 synopsis:            Tests for runtime-arbitrary (needs a separate package)
 -- description:         
 homepage:            http://chriswarbo.net/git/runtime-arbitrary-tests

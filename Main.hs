@@ -9,35 +9,37 @@ import           Test.QuickCheck.Monadic
 import           Test.Tasty (defaultMain, testGroup)
 import           Test.Tasty.QuickCheck (testProperty)
 
-main = defaultMain $ testGroup "All tests" [
-    testProperty "Found Int's Ord instance"       haveIntOrd
-  , testProperty "Found Int's Arbitrary instance" haveIntArbitrary
-  , testProperty "Found Foo's Ord instance"       haveFooOrd
-  , testProperty "Found Foo's Arbitrary instance" haveFooArbitrary
-  , testProperty "Have an Int generator"          haveIntGen
-  , testProperty "Int generator works"            intGenWorks
-  , testProperty "Have a Foo generator"           haveFooGen
-  , testProperty "Foo generator works"            fooGenWorks
-  ]
+main = defaultMain $ testGroup "All tests" $ concat
+  [haveOrds, noOrds, haveArbs, haveGens, gensWork]
+
+-- Tests
+
+haveOrds = map f ["Int", "[Int]", "Foo", "[Foo]"]
+  where f t = testProperty ("Found Ord instance for " ++ t)
+                           (givesTrue (isInstance' "Ord" t))
+
+noOrds = map f ["(Int -> Int)", "[Int -> Int]"]
+  where f t = testProperty ("No Ord instance for " ++ t)
+                           (givesTrue (notInstance' "Ord" t))
+
+haveArbs = map f ["Int", "Foo"]
+  where f t = testProperty ("Found Arbitrary instance for " ++ t)
+                           (givesTrue (isInstance' "Arbitrary" t))
+
+haveGens = map f  [("Int", intGens), ("Foo", fooGens)]
+  where f (t, g) = testProperty ("Have generator for " ++ t)
+                                (givesTrue ("show" $$ notNull' g))
+
+gensWork = map f [("Int", intGens), ("Foo", fooGens)]
+  where f (t, g) = testProperty ("Generator works for " ++ t)
+                                (givesTrue (test' g))
+
+-- Generators
 
 intGens = arbGen "Int"
 
 fooGens = withMods ["TestInstances"] . withPkgs ["runtime-arbitrary"] $
           arbGen "Foo"
-
-haveIntOrd       = givesTrue (isInstance' "Ord"       "Int")
-haveIntArbitrary = givesTrue (isInstance' "Arbitrary" "Int")
-
-haveFooOrd       = givesTrue (isInstance' "Ord"       "Foo")
-haveFooArbitrary = givesTrue (isInstance' "Arbitrary" "Foo")
-
-haveIntGen = givesTrue ("show" $$ notNull' intGens)
-
-haveFooGen = givesTrue ("show" $$ notNull' fooGens)
-
-intGenWorks = givesTrue (test' intGens)
-
-fooGenWorks = givesTrue (test' fooGens)
 
 -- Run nix-eval and check the result (Nothing for expected failure)
 
@@ -48,11 +50,19 @@ givesTrue i = once $ counterexample (show i) $ ioProperty $ do
 
 -- Quoted functions
 
-isInstance' c t =
+isInstance'  cls typ = ifCxt' cls typ true'  false'
+notInstance' cls typ = ifCxt' cls typ false' true'
+
+ifCxt' cls typ thn els =
   withInstances                                                           .
   withPkgs ["ifcxt", "QuickCheck", "runtime-arbitrary"]                   .
   withMods ["IfCxt", "Data.Typeable", "Test.QuickCheck", "TestInstances"] $
-  raw ("(ifCxt (Proxy :: Proxy (" ++ c ++ " " ++ t ++ ")) \"True\" \"False\")")
+  expr'
+  where expr'  = (("ifCxt" $$ proxy') $$ thn) $$ els
+        proxy' = raw $ "(Proxy :: Proxy (" ++ cls ++ " " ++ typ ++ "))"
+
+true'  = asString "True"
+false' = asString "False"
 
 forAll' = withPkgs ["QuickCheck"] $ qualified "Test.QuickCheck" "forAll"
 
@@ -88,7 +98,8 @@ withTH = withFlags ["-XTemplateHaskell"] . withPkgs ["template-haskell"]
 withIfCxt = withFlags ["-XFlexibleInstances",
                        "-XKindSignatures",
                        "-XScopedTypeVariables",
-                       "-XMultiParamTypeClasses"] .
+                       "-XMultiParamTypeClasses",
+                       "-XFlexibleContexts"] .
             withPkgs  ["ifcxt"] .
             withMods  ["IfCxt"]
 

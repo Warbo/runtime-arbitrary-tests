@@ -56,7 +56,7 @@ notInstance' cls typ = ifCxt' cls typ false' true'
 ifCxt' cls typ thn els =
   withInstances                                                                .
   withPkgs ["ifcxt", "QuickCheck", "runtime-arbitrary"]                        .
-  withMods ["IfCxt", "Data.Typeable", "Test.QuickCheck", "Test,TestInstances"] $
+  withMods ["IfCxt", "Data.Typeable", "Test.QuickCheck", "Test.TestInstances"] $
   expr'
   where expr'  = (("ifCxt" $$ proxy') $$ thn) $$ els
         proxy' = raw $ "(Proxy :: Proxy (" ++ cls ++ " " ++ typ ++ "))"

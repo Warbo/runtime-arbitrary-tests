@@ -38,7 +38,7 @@ gensWork = map f [("Int", intGens), ("Foo", fooGens)]
 
 intGens = arbGen "Int"
 
-fooGens = withMods ["TestInstances"] . withPkgs ["runtime-arbitrary"] $
+fooGens = withMods ["Test.TestInstances"] . withPkgs ["runtime-arbitrary"] $
           arbGen "Foo"
 
 -- Run nix-eval and check the result (Nothing for expected failure)
@@ -54,9 +54,9 @@ isInstance'  cls typ = ifCxt' cls typ true'  false'
 notInstance' cls typ = ifCxt' cls typ false' true'
 
 ifCxt' cls typ thn els =
-  withInstances                                                           .
-  withPkgs ["ifcxt", "QuickCheck", "runtime-arbitrary"]                   .
-  withMods ["IfCxt", "Data.Typeable", "Test.QuickCheck", "TestInstances"] $
+  withInstances                                                                .
+  withPkgs ["ifcxt", "QuickCheck", "runtime-arbitrary"]                        .
+  withMods ["IfCxt", "Data.Typeable", "Test.QuickCheck", "Test,TestInstances"] $
   expr'
   where expr'  = (("ifCxt" $$ proxy') $$ thn) $$ els
         proxy' = raw $ "(Proxy :: Proxy (" ++ cls ++ " " ++ typ ++ "))"

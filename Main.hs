@@ -3,7 +3,7 @@ module Main where
 
 import           Data.List
 import           Language.Eval
-import           RuntimeArbitrary
+import           Test.RuntimeArbitrary
 import           Test.QuickCheck
 import           Test.QuickCheck.Monadic
 import           Test.Tasty (defaultMain, testGroup)
@@ -85,7 +85,7 @@ unsafePerformIO' = qualified "System.IO.Unsafe" "unsafePerformIO"
 show' x = "show" $$ isSuccess' $$ unsafePerformIO' $$ x
 
 getArbGen' = withPkgs ["runtime-arbitrary"] $
-               qualified "RuntimeArbitrary" "getArbGen"
+               qualified "Test.RuntimeArbitrary" "getArbGen"
 
 arbGen t = withInstances $ getArbGen' $$ argOfType' t
 

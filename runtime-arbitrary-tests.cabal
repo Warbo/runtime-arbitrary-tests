@@ -30,3 +30,13 @@ executable runtime-arbitrary-tests
 
   -- hs-source-dirs:      
   default-language:    Haskell2010
+
+test-suite tests
+  default-language:    Haskell2010
+  type:                exitcode-stdio-1.0
+  hs-source-dirs:      tests
+  main-is:             Main.hs
+  build-depends:       base >= 4.7
+                     , QuickCheck
+                     , tasty >= 0.11.2.1
+                     , tasty-quickcheck
